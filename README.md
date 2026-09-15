@@ -78,6 +78,48 @@ uvx excel-mcp-server streamable-http
 }
 ```
 
+### 4. Docker (Streamable HTTP)
+
+A `Dockerfile` and `docker-compose.yml` are provided to run the streamable HTTP
+transport in a container.
+
+```bash
+docker compose up -d
+```
+
+The server listens on `http://localhost:8017/mcp`, and workbooks are stored in
+`./excel_files` on the host, bind-mounted to `/data/excel_files` in the container.
+
+**Client configuration**:
+```json
+{
+   "mcpServers": {
+      "excel": {
+         "url": "http://localhost:8017/mcp"
+      }
+   }
+}
+```
+
+To publish on a different host port, set `EXCEL_MCP_HOST_PORT` (the container
+always listens on 8017):
+
+```bash
+EXCEL_MCP_HOST_PORT=8080 docker compose up -d
+```
+
+Useful commands:
+
+```bash
+docker compose logs -f      # follow server logs
+docker compose ps           # status, including health
+docker compose down         # stop and remove the container
+docker compose up -d --build  # rebuild after changing the source
+```
+
+> On Linux hosts, `./excel_files` must be writable by UID 1000 (the unprivileged
+> user the container runs as): `sudo chown -R 1000:1000 ./excel_files`.
+
 ## Environment Variables & File Path Handling
 
 ### SSE and Streamable HTTP Transports

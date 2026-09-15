@@ -1,0 +1,26 @@
+services:
+  excel-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: excel-mcp-server:0.1.8
+    container_name: excel-mcp-server
+    restart: unless-stopped
+    ports:
+      # Host port is configurable; the container always listens on 8017.
+      - "${EXCEL_MCP_HOST_PORT:-8017}:8017"
+    environment:
+      FASTMCP_HOST: 0.0.0.0
+      FASTMCP_PORT: "8017"
+      # With HTTP transports every tool `filepath` is resolved relative to this
+      # directory, and paths escaping it are rejected.
+      EXCEL_FILES_PATH: /data/excel_files
+    volumes:
+      # Workbooks read and written by the server, shared with the host.
+      - ./excel_files:/data/excel_files
+    healthcheck:
+      test: ["CMD", "python", "/usr/local/bin/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
