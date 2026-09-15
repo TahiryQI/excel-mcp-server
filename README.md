@@ -78,6 +78,11 @@ uvx excel-mcp-server streamable-http
 }
 ```
 
+Both `/mcp` and `/mcp/` are served directly — the server never answers the
+endpoint with a redirect, so clients whose HTTP stack does not follow redirects
+(for instance Spring AI's `HttpClientStreamableHttpTransport`, built on the JDK
+`HttpClient`) can use either form.
+
 ### 4. Docker (Streamable HTTP)
 
 A `Dockerfile` and `docker-compose.yml` are provided to run the streamable HTTP

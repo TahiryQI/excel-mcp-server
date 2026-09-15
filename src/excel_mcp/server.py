@@ -832,6 +832,37 @@ def run_sse():
     finally:
         logger.info("Server shutdown complete")
 
+def _serve_mount_path_without_redirect(app, mount_path: str):
+    """Serve ``mount_path`` directly instead of redirecting it to ``mount_path/``.
+
+    FastMCP mounts the streamable HTTP transport with a Starlette ``Mount``, whose
+    route only matches ``<mount_path>/...``; the bare ``<mount_path>`` therefore
+    falls through to Starlette's slash redirection and is answered with a 307.
+    Clients whose HTTP stack does not follow redirects — Spring AI's
+    ``HttpClientStreamableHttpTransport``, built on the JDK ``HttpClient``, is one
+    — fail their handshake on that 307, so rewrite the bare path in place and let
+    the mount serve it.
+    """
+    bare_path = mount_path.rstrip("/")
+    if not bare_path:
+        return app
+
+    async def rewrite_bare_mount_path(scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == bare_path:
+            scope = dict(scope)
+            scope["path"] = bare_path + "/"
+            if scope.get("raw_path") == bare_path.encode():
+                scope["raw_path"] = bare_path.encode() + b"/"
+        await app(scope, receive, send)
+
+    return rewrite_bare_mount_path
+
+def build_streamable_http_app():
+    """Build the ASGI application served by the streamable HTTP transport."""
+    return _serve_mount_path_without_redirect(
+        mcp.streamable_http_app(), mcp.settings.streamable_http_path
+    )
+
 def run_streamable_http():
     """Run Excel MCP server in streamable HTTP mode."""
     # Assign value to EXCEL_FILES_PATH in streamable HTTP mode
@@ -839,10 +870,17 @@ def run_streamable_http():
     EXCEL_FILES_PATH = os.environ.get("EXCEL_FILES_PATH", "./excel_files")
     # Create directory if it doesn't exist
     os.makedirs(EXCEL_FILES_PATH, exist_ok=True)
-    
+
+    import uvicorn
+
     try:
         logger.info(f"Starting Excel MCP server with streamable HTTP transport (files directory: {EXCEL_FILES_PATH})")
-        mcp.run(transport="streamable-http")
+        uvicorn.run(
+            build_streamable_http_app(),
+            host=mcp.settings.host,
+            port=mcp.settings.port,
+            log_level=mcp.settings.log_level.lower(),
+        )
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:

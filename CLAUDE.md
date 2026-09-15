@@ -56,7 +56,7 @@ This inversion is intentional — a remote server must not let callers reach arb
 
 ### Transports
 
-`__main__.py` is a Typer app with three commands: `stdio`, `sse` (deprecated), `streamable-http`. Host/port come from `FASTMCP_HOST` / `FASTMCP_PORT` (default `0.0.0.0:8017`), read at `FastMCP` construction time — so they must be set in the environment before import, not mutated later. The HTTP endpoint is `/mcp` (the server 307-redirects to `/mcp/`).
+`__main__.py` is a Typer app with three commands: `stdio`, `sse` (deprecated), `streamable-http`. Host/port come from `FASTMCP_HOST` / `FASTMCP_PORT` (default `0.0.0.0:8017`), read at `FastMCP` construction time — so they must be set in the environment before import, not mutated later. The HTTP endpoint is `/mcp`. FastMCP mounts it with a Starlette `Mount`, which only matches `/mcp/...` and answers the bare `/mcp` with a 307 — so `run_streamable_http()` does not call `mcp.run()`; it serves `build_streamable_http_app()` (the mounted app behind a small ASGI wrapper that rewrites the bare mount path in place) under uvicorn. Both `/mcp` and `/mcp/` are therefore served directly, with no redirect, for clients that do not follow redirects. `tests/test_streamable_http_path.py` guards this.
 
 **Logging:** `server.py` writes to `excel-mcp.log` resolved relative to the *package location*, not the working directory. In stdio mode nothing may be written to stdout, which is why there is a `FileHandler` and no `StreamHandler`. That path assumption is why the Docker image has to make `/app` writable by the non-root user.
 
